@@ -91,7 +91,6 @@ button.ghost{width:100%; border:1.5px solid var(--line); background:#fff; color:
     <div class="langs" role="group">
       <button type="button" data-lang="cs" aria-pressed="true">CZ</button>
       <button type="button" data-lang="uk" aria-pressed="false">UA</button>
-      <button type="button" data-lang="ru" aria-pressed="false">RU</button>
     </div>
   </div>
 </header>
@@ -127,8 +126,7 @@ button.ghost{width:100%; border:1.5px solid var(--line); background:#fff; color:
 
     <div class="field">
       <label id="t-hours" for="hodiny">Hodiny</label>
-      <input type="number" id="hodiny" min="0.5" max="24" step="0.5" inputmode="decimal" placeholder="9">
-      <div class="chips" id="hChips"></div>
+      <select id="hodiny"></select>
     </div>
 
     <div class="field">
@@ -176,23 +174,14 @@ const T = {
       queued:"Збережено в телефоні. Надішлеться, коли буде зв'язок.",
       errFill:"Заповни всі поля.",
       errHours:"Години мають бути від 0,5 до 24.",
-      errLoad:"Не вдалося завантажити списки. Спробуй пізніше."},
-  ru:{title:"Дневной отчёт",who:"Кто ты",date:"Дата",site:"Стройка",work:"Что делал",
-      hours:"Часы",note:"Примечание (необязательно)",send:"Отправить отчёт",
-      hint:"Был на двух стройках? Отправь отчёт дважды.",
-      done:"Записано",again:"Добавить ещё стройку",close:"Готово",today:"Сегодня",yday:"Вчера",
-      sending:"Отправляю…",
-      offline:n=>`Нет связи. Отчётов в очереди: ${n}. Отправятся сами, когда появится сеть.`,
-      queued:"Сохранено в телефоне. Отправится, когда будет связь.",
-      errFill:"Заполни все поля.",
-      errHours:"Часы должны быть от 0,5 до 24.",
-      errLoad:"Не удалось загрузить списки. Попробуй позже."}
+      errLoad:"Не вдалося завантажити списки. Спробуй пізніше."}
 };
 
 const K = {lang:"mh_lang", ciselniky:"mh_ciselniky", fronta:"mh_fronta",
            kdo:"mh_kdo", stavba:"mh_stavba"};
 const $ = id => document.getElementById(id);
 let lang = ls(K.lang) || "cs";
+if(!T[lang]) { lang = "cs"; ls(K.lang, lang); }
 
 function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k);
   localStorage.setItem(k,v); }catch(e){ return null; } }
@@ -260,17 +249,20 @@ async function nacistCiselniky(){
   }
 }
 
-/* ---------- hodiny ---------- */
-[6,7,8,8.5,9,9.5,10,10.5,11,12].forEach(h=>{
-  const b = document.createElement("button");
-  b.type="button"; b.className="chip"; b.textContent = String(h).replace(".",",");
-  b.addEventListener("click",()=>{
-    $("hodiny").value = h;
-    document.querySelectorAll("#hChips .chip").forEach(x=>x.setAttribute("aria-pressed","false"));
-    b.setAttribute("aria-pressed","true");
-  });
-  $("hChips").appendChild(b);
-});
+/* ---------- hodiny: 0,5 až 16 po půlhodinách ---------- */
+(function naplnitHodiny(){
+  const sel = $("hodiny");
+  const prazdny = document.createElement("option");
+  prazdny.value = ""; prazdny.textContent = "—";
+  sel.appendChild(prazdny);
+  for(let h = 0.5; h <= 16.0001; h += 0.5){
+    const v = Math.round(h * 2) / 2;
+    const o = document.createElement("option");
+    o.value = String(v);
+    o.textContent = String(v).replace(".", ",") + " h";
+    sel.appendChild(o);
+  }
+})();
 
 /* ---------- datum ---------- */
 function isoDen(posun){
@@ -353,9 +345,10 @@ $("send").addEventListener("click", async ()=>{
 });
 
 $("again").addEventListener("click", ()=>{
-  $("stavba").value = ls(K.stavba) || "";
+  // Druhá stavba téhož dne — člověk a datum zůstávají, zbytek se vyčistí.
+  // Stavbu schválně NEpředvyplňujeme, aby nikdo omylem nezapsal tu samou dvakrát.
+  $("stavba").value = "";
   $("prace").value = ""; $("hodiny").value = ""; $("pozn").value = "";
-  document.querySelectorAll("#hChips .chip").forEach(x=>x.setAttribute("aria-pressed","false"));
   $("doneCard").classList.add("hide");
   $("formCard").classList.remove("hide");
 });
